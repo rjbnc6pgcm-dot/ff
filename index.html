@@ -2,69 +2,117 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mini AI Phone - 完整功能版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Phone - iOS Style</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://unpkg.com/framer-motion@11.11.11/dist/framer-motion.js"></script>
     <style>
-        body { background: #1a1a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;800&display=swap');
+        
+        body { background: #000; font-family: 'SF Pro Display', -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; overscroll-behavior: none; }
+        
+        /* iPhone 13 Pro 尺寸框架 */
         .phone-frame {
-            width: 375px; height: 750px; background: #000; border: 12px solid #333;
-            border-radius: 50px; position: relative; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            width: 375px; height: 812px;
+            background: #fdfdfd; border: 12px solid #1c1c1e;
+            border-radius: 50px; position: relative;
+            overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.7);
         }
-        .screen-content { height: 100%; display: flex; flex-direction: column; background: #f2f2f7; overflow-y: auto; }
-        .app-grid { display: grid; grid-template-cols: repeat(4, 1fr); gap: 15px; padding: 20px; }
-        .hidden { display: none; }
-        /* 讓對話氣泡支援你的預設樣式 */
-        .bubble { padding: 10px 14px; margin: 5px 0; max-width: 80%; font-size: 14px; }
+        
+        /* 瀏海 */
+        .notch {
+            position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 160px; height: 30px; background: #1c1c1e;
+            border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; z-index: 100;
+        }
+
+        .screen-container { height: 100%; display: flex; flex-direction: column; position: relative; }
+        .view { position: absolute; inset: 0; transition: transform 0.4s ease-out, opacity 0.3s; opacity: 1; transform: translateY(0); }
+        .hidden { opacity: 0; pointer-events: none; transform: translateY(20px); }
+        
+        /* 1. 鎖定畫面 Lock Screen */
+        #lock-screen {
+            background: url('https://images.unsplash.com/photo-1599394101890-50d4d1f2e841?q=80&w=375&auto=format&fit=crop') no-repeat center center;
+            background-size: cover; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 60px 20px 30px; color: white;
+        }
+        .lock-time { font-size: 80px; font-weight: 800; letter-spacing: -2px; }
+        .lock-date { font-size: 20px; font-weight: 600; margin-top: -10px; }
+        .swipe-hint { font-size: 14px; opacity: 0.8; animation: pulse 2s infinite; }
+
+        /* 2. 桌面 Home Screen (4x5 Grid) */
+        #home-screen { background: #000; z-index: 40; padding-top: 40px; }
+        .home-grid { display: grid; grid-template-cols: repeat(4, 1fr); grid-template-rows: repeat(5, 1fr); gap: 20px 15px; padding: 30px; height: 70%; }
+        
+        /* App 圖示樣式 */
+        .app-icon {
+            width: 60px; height: 60px; border-radius: 14px;
+            display: flex; items-center; justify-content: center; font-size: 30px;
+            cursor: pointer; transition: transform 0.1s; position: relative;
+        }
+        .app-icon:active { transform: scale(0.9); }
+        .app-label { font-size: 11px; color: white; mt-1; text-align: center; }
+
+        /* 介面統一背景 */
+        .ios-view { background: #f2f2f7; z-index: 30; flex-direction: column; }
+        
+        /* 動畫 */
+        @keyframes pulse { 0%, 100% { opacity: 0.8; transform: translateY(0); } 50% { opacity: 0.3; transform: translateY(5px); } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* 滑動解鎖控制區 */
+        .unlock-area { position: absolute; bottom: 0; left: 0; width: 100%; height: 100px; z-index: 60; cursor: ns-resize; }
     </style>
 </head>
 <body>
 
 <div class="phone-frame">
-    <div class="screen-content" id="main-screen">
-        <div class="flex justify-between px-6 pt-4 pb-2 text-xs font-bold">
-            <span id="clock">12:00</span>
-            <div class="flex gap-1">📶 🔋</div>
+    <div class="notch"></div>
+    
+    <div class="screen-container">
+        <div class="flex justify-between px-8 pt-4 pb-1 text-xs font-bold z-80 text-white" id="status-bar">
+            <span id="statusBarTime">12:00</span>
+            <div class="flex gap-1.5 items-center">📶 5G <div class="w-6 h-3 border border-white rounded-sm relative"><div class="absolute inset-px bg-green-400 rounded-sm" style="width: 80%"></div></div></div>
         </div>
 
-        <div id="home-view">
-            <div class="app-grid">
-                <div onclick="openApp('chat')" class="flex flex-col items-center"><div class="p-3 bg-green-500 rounded-2xl text-white text-2xl">💬</div><span class="text-[10px] mt-1">訊息</span></div>
-                <div onclick="openApp('fishing')" class="flex flex-col items-center"><div class="p-3 bg-blue-400 rounded-2xl text-white text-2xl">🎣</div><span class="text-[10px] mt-1">釣魚</span></div>
-                <div onclick="openApp('kitchen')" class="flex flex-col items-center"><div class="p-3 bg-orange-400 rounded-2xl text-white text-2xl">🍳</div><span class="text-[10px] mt-1">廚房</span></div>
-                <div onclick="openApp('settings')" class="flex flex-col items-center"><div class="p-3 bg-gray-500 rounded-2xl text-white text-2xl">⚙️</div><span class="text-[10px] mt-1">設定</span></div>
+        <div id="lock-screen" class="view">
+            <div class="text-center">
+                <div class="lock-time" id="lockTime">12:00</div>
+                <div class="lock-date" id="lockDate">4月27日 星期一</div>
+            </div>
+            <div class="swipe-hint flex flex-col items-center">
+                <span>︿</span>
+                <span>向上滑動解鎖</span>
+            </div>
+            <div class="unlock-area" id="unlockHandle"></div>
+        </div>
+
+        <div id="home-screen" class="view hidden p-4">
+            <div class="home-grid">
+                <div onclick="openApp('chat')" class="flex flex-col items-center"><div class="app-icon bg-green-500 text-white">💬</div><span class="app-label">訊息助手</span></div>
+                <div onclick="openApp('fishing')" class="flex flex-col items-center"><div class="app-icon bg-blue-400 text-white">🎣</div><span class="app-label">釣魚大師</span></div>
+                <div class="flex flex-col items-center"><div class="app-icon bg-white text-black border">📷</div><span class="app-label">相機</span></div>
+                <div class="flex flex-col items-center"><div class="app-icon bg-orange-400 text-white">🗺️</div><span class="app-label">地圖</span></div>
+                
+                <div class="flex flex-col items-center"><div class="app-icon bg-white text-black border">⏱️</div><span class="app-label">時鐘</span></div>
+                <div class="flex flex-col items-center"><div class="app-icon bg-blue-600 text-white">📘</div><span class="app-label">圖鑑</span></div>
+                <div onclick="openApp('kitchen')" class="flex flex-col items-center"><div class="app-icon bg-orange-500 text-white">🍳</div><span class="app-label">廚房</span></div>
+                <div class="flex flex-col items-center"><div class="app-icon bg-green-600 text-white">🌿</div><span class="app-label">花園</span></div>
+
+                <div></div><div></div><div></div><div></div>
+                <div></div><div></div><div></div><div></div>
+                
+                <div></div><div></div><div></div>
+                <div onclick="openApp('settings')" class="flex flex-col items-center"><div class="app-icon bg-gray-500 text-white">⚙️</div><span class="app-label">設定</span></div>
             </div>
         </div>
 
-        <div id="chat-view" class="hidden flex-1 flex flex-col bg-white">
-            <div class="p-4 border-b flex items-center justify-between">
-                <button onclick="goHome()" class="text-blue-500">◀</button>
-                <span class="font-bold">AI 助手</span>
-                <div class="w-6"></div>
+        <div id="app-view" class="view ios-view hidden flex">
+            <div class="p-4 pt-10 border-b flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-20">
+                <button onclick="goHome()" class="text-blue-500 font-medium">◀ 桌面</button>
+                <span class="font-bold text-lg" id="app-title">應用程式</span>
+                <div class="w-10"></div>
             </div>
-            <div id="chat-history" class="flex-1 p-4 overflow-y-auto space-y-2"></div>
-            <div class="p-2 border-t flex gap-2">
-                <input id="chat-input" class="flex-1 border rounded-full px-4 py-1" placeholder="說點什麼...">
-                <button onclick="handleChat()" class="bg-blue-500 text-white px-4 rounded-full">傳送</button>
-            </div>
-        </div>
-
-        <div id="settings-view" class="hidden p-6">
-            <h2 class="text-xl font-bold mb-4">設定</h2>
-            <label class="text-sm">Gemini API Key</label>
-            <input id="api-key" type="password" class="w-full border p-2 rounded mb-4" placeholder="貼上你的 Key">
-            <button onclick="saveSettings()" class="w-full bg-blue-500 text-white py-2 rounded">儲存</button>
-            <button onclick="goHome()" class="w-full mt-2 text-gray-500">返回</button>
-        </div>
-        
-        <div id="fishing-view" class="hidden p-4 flex-1 flex flex-col items-center justify-center">
-            <h2 class="text-xl font-bold mb-10 text-blue-800">海洋釣場</h2>
-            <div id="fish-area" class="text-6xl mb-10">🌊</div>
-            <button onclick="startFishing()" class="bg-blue-600 text-white px-10 py-4 rounded-full font-bold">拋竿</button>
-            <p id="fish-status" class="mt-4 text-sm"></p>
-            <button onclick="goHome()" class="mt-10 text-blue-500">返回桌面</button>
+            
+            <div id="app-content" class="flex-1 overflow-y-auto"></div>
         </div>
     </div>
 </div>
@@ -76,45 +124,77 @@
 <script type="module">
     import { GoogleGenerativeAI } from "@google/generative-ai";
 
-    // 這裡會放置你 App.tsx 裡的資料
+    // --- 資料準備 (從 App.tsx 整合) ---
     const FISH_TYPES = [
-        { name: '孔雀魚', rarity: '一般', icon: '🐟' },
-        { name: '大白鯊', rarity: '史詩', icon: '🦈' },
+        { name: '孔雀魚', rarity: '一般', icon: '🐟' }, { name: '吳郭魚', rarity: '一般', icon: '🐟' },
+        { name: '小丑魚', rarity: '一般', icon: '🐠' }, { name: '大白鯊', rarity: '史詩', icon: '🦈' },
         { name: '黃金龍魚', rarity: '傳說', icon: '🐉' }
     ];
 
-    // 初始化時間
-    setInterval(() => {
-        const d = new Date();
-        document.getElementById('clock').innerText = d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0');
-    }, 1000);
+    // --- 基礎邏輯：時間與視窗控制 ---
+    function updateClock() {
+        const now = new Date();
+        const timeStr = now.getHours() + ":" + String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('lockTime').innerText = timeStr;
+        document.getElementById('statusBarTime').innerText = timeStr;
+        
+        const options = { weekday: 'long', month: 'long', day: 'numeric' };
+        document.getElementById('lockDate').innerText = now.toLocaleDateString('zh-TW', options);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-    // 視窗切換
-    window.openApp = (app) => {
-        document.getElementById('home-view').classList.add('hidden');
-        document.getElementById(app + '-view').classList.remove('hidden');
+    window.openApp = (appName) => {
+        const view = document.getElementById('app-view');
+        const content = document.getElementById('app-content');
+        const title = document.getElementById('app-title');
+        
+        content.innerHTML = ''; // 清空
+        view.classList.remove('hidden');
+        document.getElementById('home-screen').classList.add('hidden');
+        document.getElementById('status-bar').classList.remove('text-white');
+        document.getElementById('status-bar').classList.add('text-black');
+
+        // 載入對應 App 的 UI (濃縮邏輯)
+        if (appName === 'chat') {
+            title.innerText = '訊息助手';
+            content.innerHTML = `<div id="chat-box" class="p-4 space-y-3 flex-1 overflow-y-auto text-sm"></div>
+                <div class="p-2 border-t flex gap-2 bg-white"><input id="chat-input" class="flex-1 border rounded-full px-4 py-2" placeholder="說點什麼..."><button onclick="handleChat()" class="bg-blue-500 text-white px-4 rounded-full font-bold">傳送</button></div>`;
+        } else if (appName === 'fishing') {
+            title.innerText = '釣魚大師';
+            content.innerHTML = `<div class="flex-1 flex flex-col items-center justify-center p-10 h-full"><div id="fish-area" class="text-8xl mb-10">🌊</div><button onclick="startFishing()" class="bg-blue-600 text-white px-10 py-4 rounded-full font-bold shadow-lg text-lg">拋竿</button><p id="fish-status" class="mt-8 text-lg font-bold text-blue-950"></p></div>`;
+        } else if (appName === 'settings') {
+            title.innerText = '設定';
+            content.innerHTML = `<div class="p-6 space-y-4"><label class="font-bold">Gemini API Key</label><input id="api-key" type="password" class="w-full border p-2 rounded" placeholder="在此貼上 Key"><button onclick="saveSettings()" class="w-full bg-black text-white py-2 rounded font-bold">儲存 Key</button><p class="text-xs text-gray-500">Key 存在你的瀏覽器中。</p></div>`;
+            document.getElementById('api-key').value = localStorage.getItem('gemini_key') || '';
+        }
     };
+
     window.goHome = () => {
-        document.querySelectorAll('[id$="-view"]').forEach(el => el.classList.add('hidden'));
-        document.getElementById('home-view').classList.remove('hidden');
+        document.getElementById('app-view').classList.add('hidden');
+        document.getElementById('home-screen').classList.remove('hidden');
+        document.getElementById('status-bar').classList.remove('text-black');
+        document.getElementById('status-bar').classList.add('text-white');
     };
 
-    // 設定邏輯
+    // --- 設定邏輯 ---
     window.saveSettings = () => {
         localStorage.setItem('gemini_key', document.getElementById('api-key').value);
-        alert('設定已儲存');
-        goHome();
+        alert('設定儲存成功');
     };
 
-    // 聊天邏輯 (帶入你的 AI 設定)
+    // --- 聊天邏輯 (帶入你當初的設定) ---
     window.handleChat = async () => {
         const input = document.getElementById('chat-input');
-        const history = document.getElementById('chat-history');
+        const box = document.getElementById('chat-box');
         const key = localStorage.getItem('gemini_key');
-        if(!key) return alert('請先填寫 API Key');
+        if(!key) return alert('請先到設定輸入 API Key');
 
         const userVal = input.value;
-        history.innerHTML += `<div class="self-end bg-blue-500 text-white bubble rounded-l-lg rounded-tr-lg ml-auto">${userVal}</div>`;
+        if(!userVal.trim()) return;
+
+        // 復刻你 App.tsx 裡的氣泡樣式 (用戶)
+        box.innerHTML += `<div class="flex justify-end"><div class="bg-blue-500 text-white bubble rounded-t-lg rounded-bl-lg px-4 py-2 max-w-[80%]">${userVal}</div></div>`;
         input.value = '';
 
         try {
@@ -122,30 +202,78 @@
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
             const result = await model.generateContent(userVal);
             const text = result.response.text();
-            history.innerHTML += `<div class="self-start bg-gray-200 text-black bubble rounded-r-lg rounded-tl-lg">${text}</div>`;
+            // 復刻 (AI)
+            box.innerHTML += `<div class="flex justify-start"><div class="bg-gray-200 text-black bubble rounded-r-lg rounded-bl-lg px-4 py-2 max-w-[80%]">${text}</div></div>`;
         } catch (e) {
-            history.innerHTML += `<div class="text-red-500 text-xs text-center">API Key 錯誤或額度已滿</div>`;
+            box.innerHTML += `<div class="text-red-500 text-xs text-center">連線出錯，請檢查 Key</div>`;
         }
-        history.scrollTop = history.scrollHeight;
+        box.scrollTop = box.scrollHeight;
     };
 
-    // 釣魚邏輯 (從你的程式碼移植)
+    // --- 釣魚邏輯 (移植 App.tsx) ---
     window.startFishing = () => {
         const status = document.getElementById('fish-status');
         const area = document.getElementById('fish-area');
-        status.innerText = "等待魚兒中...";
+        status.innerText = "拋竿中，等待魚兒...";
+        area.innerText = "🎣";
         area.classList.add('animate-bounce');
         
         setTimeout(() => {
-            const fish = FISH_TYPES[Math.floor(Math.random() * FISH_TYPES.length)];
+            const isFish = Math.random() < 0.7; // 70% 釣到魚
             area.classList.remove('animate-bounce');
-            area.innerText = fish.icon;
-            status.innerHTML = `釣到了！<br><b>${fish.name}</b> (${fish.rarity})`;
-        }, 2000);
+            if (isFish) {
+                const fish = FISH_TYPES[Math.floor(Math.random() * FISH_TYPES.length)];
+                area.innerText = fish.icon;
+                status.innerHTML = `哇！上鉤了：<b class="text-orange-600">${fish.name}</b><br><span class="text-sm font-normal">稀有度：${fish.rarity}</span>`;
+            } else {
+                area.innerText = "👟";
+                status.innerText = "哎呀，釣到了破鞋子...";
+            }
+        }, 2500);
     };
 
-    // 預載 Key
-    document.getElementById('api-key').value = localStorage.getItem('gemini_key') || '';
+    // --- ✨ 上滑解鎖邏輯 (核心優化) ---
+    const handle = document.getElementById('unlockHandle');
+    const lockScreen = document.getElementById('lock-screen');
+    const homeScreen = document.getElementById('home-screen');
+    const statusBar = document.getElementById('status-bar');
+    let startY = 0;
+
+    handle.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+        lockScreen.style.transition = 'none'; // 滑動時禁用過渡
+    });
+
+    handle.addEventListener('touchmove', (e) => {
+        const currentY = e.touches[0].clientY;
+        const diffY = currentY - startY;
+        if (diffY < 0) { // 只處理向上滑
+            const movePercentage = Math.abs(diffY) / 812;
+            lockScreen.style.transform = `translateY(${diffY}px)`;
+            lockScreen.style.opacity = 1 - movePercentage * 1.5;
+        }
+    });
+
+    handle.addEventListener('touchend', (e) => {
+        const currentY = e.changedTouches[0].clientY;
+        const diffY = currentY - startY;
+        lockScreen.style.transition = 'transform 0.3s ease-out, opacity 0.3s'; // 恢復過渡
+
+        if (diffY < -150) { // 滑動超過 150px 則解鎖
+            lockScreen.style.transform = 'translateY(-100%)';
+            lockScreen.style.opacity = '0';
+            setTimeout(() => {
+                lockScreen.classList.add('hidden');
+                homeScreen.classList.remove('hidden');
+                statusBar.classList.remove('text-white');
+                statusBar.classList.add('text-white'); // 桌面也是黑底，保持白字
+            }, 300);
+        } else { // 否則彈回
+            lockScreen.style.transform = 'translateY(0)';
+            lockScreen.style.opacity = '1';
+        }
+    });
+
 </script>
 </body>
 </html>
